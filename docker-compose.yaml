@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  firefox:
+    image: jlesage/firefox:latest        # ← 换镜像
+    container_name: jl-firefox
+    restart: unless-stopped
+    shm_size: "1gb"                      # 避免大型页面崩溃
+    environment:
+      - TZ=Asia/Shanghai
+      - USER_ID=1000                     # 根据宿主机用户 id 调整
+      - GROUP_ID=1000
+      # ===== VNC / noVNC 认证 =====
+      - VNC_PASSWORD=password            # 设置后，网页也会弹密码框
+      # - SECURE_CONNECTION=1            # 若想 5800 直接跑 HTTPS，可启用并挂 SSL 证书
+    expose:
+      - "5800"                           # noVNC 网页 (HTTP)
+      # - "5900"                         # 原生 VNC 客户端端口，如不需要可省
+    volumes:
+      - ./firefox_config:/config
+      - ./downloads:/downloads
+    networks: [tunnel-net]
+
+  cf-tunnel:
+    image: cloudflare/cloudflared:2024.6.0
+    container_name: cf-tunnel
+    restart: unless-stopped
+    environment:
+      # ===== 用 Tunnel Token 最省事 =====
+      - TUNNEL_TOKEN=ey开头的你的argotoken #这里填写你的argotoken
+    command: tunnel run #--no-autoupdate   # Token 已包含 “http://firefox:5800”
+    depends_on: [firefox]
+    networks: [tunnel-net]
+
+networks:
+  tunnel-net:
+    driver: bridge
